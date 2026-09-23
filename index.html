@@ -18,6 +18,11 @@
 <header class="top"><div class="topin"><div class="brand">☎︎ 通話ログ</div><div class="acts"><button id="backup" title="バックアップ">⇩</button><button id="restore" title="復元">⇧</button></div></div></header>
 <main>
 <section id="listView" class="view active">
+<div class="card" style="margin-bottom:14px">
+<h3>通話後のクイック登録</h3>
+<button id="clipImport" class="primary">📋 クリップボードから取り込む</button>
+<div class="hint">iPhoneの「メモ」で通話の文字起こしをコピーしたあと、このボタンを押すだけで全文を取り込みます。初回は「貼り付けを許可」を選んでください。</div>
+</div>
 <div class="search">⌕<input id="q" placeholder="相手名・物件名・会話内容を検索"></div>
 <div class="head"><h2>通話履歴</h2><span class="muted" id="count">0件</span></div>
 <div id="list" class="list"></div>
@@ -30,6 +35,7 @@
 <div class="switch"><div><label style="margin:0">重要マーク</label><div class="hint">重要な電話をあとで見つけやすくします。</div></div><input id="important" type="checkbox"></div>
 </div>
 <div class="card"><h3>文字起こし</h3>
+<button id="clipImport2" class="btn" style="width:100%;margin-bottom:12px">📋 クリップボードから貼り付け</button>
 <div class="drop"><label>TXT / VTT / SRT を読み込む</label><input id="tf" type="file" accept=".txt,.md,.vtt,.srt,text/plain,text/vtt"><div class="hint">iPhoneの文字起こしを下へ貼り付けてもOKです。</div></div>
 <div class="field" style="margin-top:12px"><label>全文</label><textarea id="transcript" placeholder="ここに通話の文字起こしを貼り付け"></textarea></div>
 <div class="drop"><label>録音ファイル（任意）</label><input id="af" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac"><div class="hint">音声もこの端末のブラウザ内に保存します。</div></div>
@@ -63,6 +69,8 @@ async function render(){let q=$('q').value.toLowerCase(),r=await all();r.sort((a
 async function detail(id){let r=await one(id);if(!r)return;currentId=id;$('dTitle').textContent=r.contact||'相手名未入力';$('dMeta').textContent=[r.project,fmt(r.callAt),r.duration].filter(Boolean).join(' ・ ');$('dSum').textContent=r.analysis?.summary||'';$('dTodo').textContent=((r.analysis?.todos||[]).map(x=>'• '+x).join('\n')||'候補なし')+((r.analysis?.dates||[]).length?'\n期限候補: '+r.analysis.dates.join(' / '):'');$('dText').textContent=r.transcript||'';if(audioUrl)URL.revokeObjectURL(audioUrl);if(r.audioBlob){audioUrl=URL.createObjectURL(r.audioBlob);$('audio').src=audioUrl;$('audioSec').style.display='block'}else{$('audioSec').style.display='none'}$('modal').classList.add('open')}
 function close(){ $('modal').classList.remove('open');if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}}
 $('save').onclick=async()=>{let t=$('transcript').value.trim();if(!t)return toast('文字起こしを入力してください');let f=$('af').files[0]||null,r={id:crypto.randomUUID?crypto.randomUUID():Date.now()+'',contact:$('contact').value.trim(),project:$('project').value.trim(),callAt:$('callAt').value,duration:$('duration').value.trim(),important:$('important').checked,transcript:t,analysis:analyze(t),audioBlob:f,createdAt:new Date().toISOString()};await put(r);['contact','project','duration','transcript'].forEach(x=>$(x).value='');$('important').checked=false;$('tf').value='';$('af').value='';now();preview();toast('保存しました');view('listView')}
+async function importClipboard(){try{let t=await navigator.clipboard.readText();t=clean(t||'');if(!t)return toast('クリップボードが空です');$('transcript').value=t;now();preview();view('newView');setTimeout(()=>$('contact').focus(),120);toast('文字起こしを取り込みました')}catch(e){view('newView');setTimeout(()=>$('transcript').focus(),120);toast('貼り付け許可後、もう一度押してください')}}
+$('clipImport').onclick=importClipboard;$('clipImport2').onclick=importClipboard;
 $('tf').onchange=async e=>{let f=e.target.files[0];if(f){$('transcript').value=clean(await f.text());preview();toast('読み込みました')}};$('transcript').oninput=preview;$('q').oninput=render;document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>view(b.dataset.v));$('close').onclick=close;$('modal').onclick=e=>{if(e.target===$('modal'))close()}
 $('del').onclick=async()=>{if(currentId&&confirm('この通話記録を削除しますか？')){await remove(currentId);close();render();toast('削除しました')}};$('copy').onclick=async()=>{let r=await one(currentId);if(r){await navigator.clipboard.writeText((r.contact||'')+'\n'+(r.project||'')+'\n\n【要約】\n'+(r.analysis?.summary||'')+'\n\n【全文】\n'+(r.transcript||''));toast('コピーしました')}}
 function b64(blob){return new Promise(ok=>{let f=new FileReader();f.onload=()=>ok(f.result);f.readAsDataURL(blob)})}
